@@ -31,6 +31,11 @@ class PropertyCreate(BaseModel):
     property_type: str = Field(..., min_length=1)
     tenant_name: Optional[str] = None
     monthly_rent: float = Field(..., gt=0)
+    bed_count: Optional[int] = None
+    bath_count: Optional[float] = None
+    square_footage: Optional[int] = None
+    condition: Optional[str] = None
+    notes: Optional[str] = None
 
 
 class PropertyUpdate(BaseModel):
@@ -42,6 +47,11 @@ class PropertyUpdate(BaseModel):
     property_type: Optional[str] = Field(None, min_length=1)
     tenant_name: Optional[str] = None
     monthly_rent: Optional[float] = Field(None, gt=0)
+    bed_count: Optional[int] = None
+    bath_count: Optional[float] = None
+    square_footage: Optional[int] = None
+    condition: Optional[str] = None
+    notes: Optional[str] = None
 
 
 class IncomeCreate(BaseModel):
@@ -111,7 +121,12 @@ def get_properties(bq: bigquery.Client = Depends(get_bq_client)):
             postal_code,
             property_type,
             tenant_name,
-            monthly_rent
+            monthly_rent,
+            bed_count,
+            bath_count,
+            square_footage,
+            condition,
+            notes
         FROM `{PROJECT_ID}.{DATASET}.properties`
         ORDER BY property_id
     """
@@ -146,7 +161,12 @@ def get_property(property_id: int, bq: bigquery.Client = Depends(get_bq_client))
             postal_code,
             property_type,
             tenant_name,
-            monthly_rent
+            monthly_rent,
+            bed_count,
+            bath_count,
+            square_footage,
+            condition,
+            notes
         FROM `{PROJECT_ID}.{DATASET}.properties`
         WHERE property_id = {property_id}
     """
@@ -176,12 +196,16 @@ def create_property(prop: PropertyCreate, bq: bigquery.Client = Depends(get_bq_c
     query = f"""
         INSERT INTO `{PROJECT_ID}.{DATASET}.properties`
             (property_id, name, address, city, state, postal_code,
-             property_type, tenant_name, monthly_rent)
+             property_type, tenant_name, monthly_rent,
+             bed_count, bath_count, square_footage, condition, notes)
         VALUES
             ({new_id}, {sql_value(prop.name)}, {sql_value(prop.address)},
              {sql_value(prop.city)}, {sql_value(prop.state)},
              {sql_value(prop.postal_code)}, {sql_value(prop.property_type)},
-             {sql_value(prop.tenant_name)}, {prop.monthly_rent})
+             {sql_value(prop.tenant_name)}, {prop.monthly_rent},
+             {sql_value(prop.bed_count)}, {sql_value(prop.bath_count)},
+             {sql_value(prop.square_footage)}, {sql_value(prop.condition)},
+             {sql_value(prop.notes)})
     """
     try:
         bq.query(query).result()
@@ -236,6 +260,8 @@ def update_property(property_id: int, prop: PropertyUpdate, bq: bigquery.Client 
         if isinstance(value, str):
             escaped = value.replace("'", "''")
             updates.append(f"{key} = '{escaped}'")
+        elif value is None:
+            updates.append(f"{key} = NULL")
         else:
             updates.append(f"{key} = {value}")
     set_clause = ", ".join(updates)
